@@ -75,7 +75,7 @@ class Add implements Callable<Void> {
   @Override
   public Void call() {
     PreparedStatement select = session.prepare("SELECT y from castest.cas WHERE x=?")
-            .setConsistencyLevel(ConsistencyLevel.ONE);
+            .setConsistencyLevel(ConsistencyLevel.SERIAL);
     PreparedStatement swap = session.prepare("UPDATE castest.cas SET y=? WHERE x='3' IF y=?")
             .setConsistencyLevel(ConsistencyLevel.QUORUM);
     int passed = 0;
@@ -83,8 +83,9 @@ class Add implements Callable<Void> {
       try {
         List<Row> rows= session.execute(select.bind("3")).all();
         long found = rows.get(0).getLong("y");
-        session.execute(swap.bind(found + 1, found));
-        passed++;
+        if (session.execute(swap.bind(found + 1, found)).wasApplied()){
+          passed++;
+        }
       } catch (RuntimeException ex){
         ex.printStackTrace();
       }
