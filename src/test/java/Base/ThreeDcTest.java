@@ -112,7 +112,7 @@ public class ThreeDcTest {
     PreparedStatement eachquorumWrite = session.prepare("INSERT INTO test.kv (x , y)   VALUES (?, ?)")
             .setConsistencyLevel(ConsistencyLevel.EACH_QUORUM);
     PreparedStatement quorumWrite = session.prepare("INSERT INTO test.kv (x , y)     VALUES (?, ?)")
-            .setConsistencyLevel(ConsistencyLevel.LOCAL_ONE);
+            .setConsistencyLevel(ConsistencyLevel.QUORUM);
       
     session.execute(oneWrite.bind("mykey", "val1"));
     session.execute(localquorumWrite.bind("mykey", "val2"));
@@ -141,7 +141,7 @@ public class ThreeDcTest {
     session.execute(oneWrite.bind("mykey", "val4"));
     session.execute(localquorumWrite.bind("mykey", "val5"));
     assertException(session, eachquorumWrite);
-    assertException(session, quorumWrite);
+    assertException(session, quorumWrite); //possible bug here
     
   }
   
