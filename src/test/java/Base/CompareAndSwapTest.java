@@ -16,6 +16,8 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.WriteType;
+import com.datastax.driver.core.exceptions.WriteTimeoutException;
 
 public class CompareAndSwapTest extends Base{
 
@@ -32,23 +34,20 @@ public class CompareAndSwapTest extends Base{
     session.execute("CREATE KEYSPACE castest WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }");
     session.execute("USE castest");
     session.execute("CREATE TABLE cas (x varchar, y bigint, primary key(x))");
-    
     PreparedStatement insert = session.prepare("INSERT INTO castest.cas (x,y) VALUES ('3', ?)");
-    
-    Add a = new Add("127.0.0.101", 1000);
-    Add b = new Add("127.0.0.101", 1000);
-    Add c = new Add("127.0.0.101", 1000);
     
     session.execute(insert.bind(new Long(0)));
     ExecutorService es = Executors.newFixedThreadPool(10);
-    List<Future<Void>> fut = es.invokeAll(Arrays.asList(a,b,c));
+    List<Future<Void>> fut = es.invokeAll(Arrays.asList(
+            new Add("127.0.0.101", 1000, 3000),
+            new Add("127.0.0.101", 1000, 3000),
+            new Add("127.0.0.101", 1000, 3000)));
     waitForTheFuture(fut);
 
     PreparedStatement select = session.prepare("SELECT y from castest.cas WHERE x=?")
             .setConsistencyLevel(ConsistencyLevel.SERIAL);
     List<Row> rows = session.execute(select.bind("3")).all();
-    Assert.assertEquals(1000 * 3 , rows.get(0).getLong("y"));        
-    
+    Assert.assertEquals(3000 , rows.get(0).getLong("y"));        
   }
   
   public void waitForTheFuture(List<Future<Void>> fut) throws InterruptedException {
@@ -66,10 +65,12 @@ class Add implements Callable<Void> {
 
   private final Session session;
   private final int numberOfInserts;
+  private final int total;
   
-  public Add(String host, int numberOfInserts){
+  public Add(String host, int numberOfInserts, int total){
     session = Util.getSession(host);
     this.numberOfInserts = numberOfInserts;
+    this.total = total;
   }
   
   @Override
@@ -83,9 +84,23 @@ class Add implements Callable<Void> {
       try {
         List<Row> rows= session.execute(select.bind("3")).all();
         long found = rows.get(0).getLong("y");
-        if (session.execute(swap.bind(found + 1, found)).wasApplied()){
-          passed++;
+        if (found == total){
+          break;
         }
+        try {
+          boolean applied = session.execute(swap.bind(found + 1, found)).wasApplied();
+          if (applied){
+            passed ++;
+          }
+        } catch (WriteTimeoutException e){
+          if ( e.getWriteType() == WriteType.SIMPLE){
+           // passed ++;
+          }
+          if (e.getWriteType() == WriteType.CAS){
+            //
+          }
+        }
+        
       } catch (RuntimeException ex){
         ex.printStackTrace();
       }
