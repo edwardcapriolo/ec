@@ -42,12 +42,16 @@ public class CompareAndSwapTest extends Base{
             new Add("127.0.0.101", 1000, 3000),
             new Add("127.0.0.101", 1000, 3000),
             new Add("127.0.0.101", 1000, 3000)));
+    
     waitForTheFuture(fut);
-
-    PreparedStatement select = session.prepare("SELECT y from castest.cas WHERE x=?")
+    assertCount(session, 3000);
+  }
+  
+  public void assertCount(Session session, int count){
+    PreparedStatement select = session.prepare("SELECT y from castest.cas   WHERE x=?")
             .setConsistencyLevel(ConsistencyLevel.SERIAL);
     List<Row> rows = session.execute(select.bind("3")).all();
-    Assert.assertEquals(3000 , rows.get(0).getLong("y"));        
+    Assert.assertEquals(count, rows.get(0).getLong("y"));
   }
   
   public void waitForTheFuture(List<Future<Void>> fut) throws InterruptedException {
@@ -93,16 +97,11 @@ class Add implements Callable<Void> {
             passed ++;
           }
         } catch (WriteTimeoutException e){
-          if ( e.getWriteType() == WriteType.SIMPLE){
-           // passed ++;
-          }
-          if (e.getWriteType() == WriteType.CAS){
-            //
-          }
+          if ( e.getWriteType() == WriteType.SIMPLE){ }
+          if (e.getWriteType() == WriteType.CAS){ }
         }
-        
       } catch (RuntimeException ex){
-        ex.printStackTrace();
+        //ex.printStackTrace();
       }
     } while (passed < numberOfInserts);
     return null;
