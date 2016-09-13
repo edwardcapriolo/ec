@@ -1,0 +1,18 @@
+CREATE TABLE IF NOT EXISTS email_histogram (
+id text,
+email text,
+score float,
+PRIMARY KEY (id, email)
+) WITH bloom_filter_fp_chance = 0.01
+AND caching = 'KEYS_ONLY'
+AND comment = ''
+AND compaction =
+{'tombstone_threshold': '0.1', 'tombstone_compaction_interval': '300', 'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}
+AND compression =
+{'sstable_compression': 'org.apache.cassandra.io.compress.SnappyCompressor'}
+AND dclocal_read_repair_chance = 0.1
+AND default_time_to_live = 864000
+AND gc_grace_seconds = 86400
+AND memtable_flush_period_in_ms = 0
+AND read_repair_chance = 0.0
+AND speculative_retry = '99.0PERCENTILE';
