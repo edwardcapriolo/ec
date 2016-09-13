@@ -6,6 +6,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 
@@ -17,7 +18,7 @@ public class Util {
 
   public static Farsandra build(String host, String instance, String seed) throws InterruptedException{
     Farsandra fs = new Farsandra();
-    fs.withVersion("2.2.4");
+    fs.withVersion("2.2.6");
     fs.withCleanInstanceOnStart(true);
     fs.withInstanceName(instance);
     fs.withCreateConfigurationFiles(true);
@@ -54,8 +55,10 @@ public class Util {
   public static Session getSession(String host){
     List<String> hosts = Arrays.asList(host);
     SocketOptions so = new SocketOptions().setReadTimeoutMillis(10000);
-    Cluster cluster = Cluster.builder().addContactPoints(hosts.toArray(new String[] {}))
+    Cluster cluster = Cluster.builder().addContactPoints(hosts.toArray(new String[] {})).
+            withQueryOptions(new QueryOptions().setFetchSize(2000))
             .withSocketOptions(so).build();
+    
     Session session = cluster.connect();
     return session;
   }
