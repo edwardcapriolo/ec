@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.exceptions.InvalidQueryException;
 
 import Base.Base;
 import Base.Util;
@@ -20,8 +21,8 @@ public class BigBatches2_2_6 extends Base {
   }
   
   
-  @Test(expected=IllegalStateException.class)
-  //java.lang.IllegalStateException: Batch statement cannot contain more than 65535 statements.
+  @Test(expected=InvalidQueryException.class)
+  //Batch too large
   public void aTest(){
     BigBatches3_7.keepBatchingTillYouDie(BatchStatement.Type.LOGGED);
   }  

@@ -1,14 +1,11 @@
 package Base.batch;
 
-
-
 import org.junit.Before;
 import org.junit.Test;
 
 import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.exceptions.InvalidQueryException;
 
 import Base.Base;
 import Base.Util;
