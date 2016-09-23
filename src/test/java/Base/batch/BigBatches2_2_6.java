@@ -22,7 +22,7 @@ public class BigBatches2_2_6 extends Base {
   
   
   @Test(expected=InvalidQueryException.class)
-  //Batch too large
+  //Batch too large ~1700
   public void aTest(){
     BigBatches3_7.keepBatchingTillYouDie(BatchStatement.Type.LOGGED);
   }  
