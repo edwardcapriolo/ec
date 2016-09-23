@@ -1,26 +1,35 @@
-package Base;
+package Base.batch;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.QueryOptions;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
+import org.junit.Before;
+import org.junit.Test;
 
+import Base.Base;
+import Base.Util;
 import io.teknek.farsandra.Farsandra;
 import io.teknek.farsandra.LineHandler;
 import io.teknek.farsandra.ProcessHandler;
 
-public class Util {
+public class BigBatches2_2_6_tweeked extends Base {
 
-  public static Farsandra build(String host, String instance, String seed) throws InterruptedException {
-    return build(host, instance, seed, "2.2.6");
+  @Before
+  public void setup() throws InterruptedException {
+    fs1.add(buildTweeked("127.0.0.101", "101", "127.0.0.101", "2.2.6"));
+    fs1.add(buildTweeked("127.0.0.102", "102", "127.0.0.101", "2.2.6"));
+    fs1.add(buildTweeked("127.0.0.103", "103", "127.0.0.101", "2.2.6"));
   }
   
-  public static Farsandra build(String host, String instance, String seed, String version) throws InterruptedException{
+  @Test(expected=IllegalStateException.class)
+  //java.lang.IllegalStateException: Batch statement cannot contain more than 65535 statements.
+  public void aTest(){
+    BigBatches3_7.keepBatchingTillYouDie();
+  }  
+  
+  
+  public static Farsandra buildTweeked(String host, String instance, String seed, String version) throws InterruptedException{
     Farsandra fs = new Farsandra();
     fs.withVersion(version);
     fs.withCleanInstanceOnStart(true);
@@ -33,6 +42,12 @@ public class Util {
     fs.appendLinesToEnv("HEAP_NEWSIZE=10M");
     fs.withYamlReplacement("endpoint_snitch: SimpleSnitch",
             "endpoint_snitch:  GossipingPropertyFileSnitch");
+    fs.withYamlReplacement("batch_size_warn_threshold_in_kb: 5", 
+            "batch_size_warn_threshold_in_kb: 728");
+    fs.withYamlReplacement("batch_size_fail_threshold_in_kb: 50", 
+            "batch_size_fail_threshold_in_kb: 5000");
+    fs.withYamlReplacement("commitlog_segment_size_in_mb: 32", 
+            "commitlog_segment_size_in_mb: 64");
     fs.appendLineToYaml("auto_bootstrap: false");
     final CountDownLatch started = new CountDownLatch(1);
     fs.getManager().addOutLineHandler(new LineHandler() {
@@ -56,14 +71,4 @@ public class Util {
     return fs;
   }
   
-  public static Session getSession(String host){
-    List<String> hosts = Arrays.asList(host);
-    SocketOptions so = new SocketOptions().setReadTimeoutMillis(10000);
-    Cluster cluster = Cluster.builder().addContactPoints(hosts.toArray(new String[] {})).
-            withQueryOptions(new QueryOptions().setFetchSize(2000))
-            .withSocketOptions(so).build();
-    
-    Session session = cluster.connect();
-    return session;
-  }
 }
