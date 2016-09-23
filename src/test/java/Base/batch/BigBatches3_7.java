@@ -22,7 +22,7 @@ public class BigBatches3_7 extends Base {
     fs1.add(Util.build("127.0.0.103", "103", "127.0.0.101", "3.7"));
   }
   
-  public static void keepBatchingTillYouDie(){
+  public static void keepBatchingTillYouDie(BatchStatement.Type statementType){
     Session session = Util.getSession("127.0.0.101");
     session.execute("CREATE KEYSPACE eventualtest WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }");
     session.execute("USE eventualtest");
@@ -32,7 +32,7 @@ public class BigBatches3_7 extends Base {
     PreparedStatement ps = session.prepare("insert into three (x,y,z) values (?,?,?)");
     System.out.println("batch_size\tbatch_time");
     for (int i = insertsInBatch; i < endInsertsInBatch ; i= (int) (i * 1.2D)){
-      BatchStatement bs = new BatchStatement();
+      BatchStatement bs = new BatchStatement(statementType);
       long start = System.currentTimeMillis();
       for (int j = 0 ; j < i; j++){
         bs.add(ps.bind("1", j + "", j + "3"));  
@@ -42,9 +42,10 @@ public class BigBatches3_7 extends Base {
     }
   }
   
-  @Test(expected=InvalidQueryException.class)
-  //last success is size 1728
+  @Test(expected=IllegalStateException.class)
+  //Caused by: java.lang.IllegalStateException: Batch statement cannot contain more than 65535 statements.
+  
   public void aTest(){
-    keepBatchingTillYouDie();
+    keepBatchingTillYouDie(BatchStatement.Type.LOGGED);
   }  
 }

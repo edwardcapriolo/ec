@@ -7,8 +7,9 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.datastax.driver.core.BatchStatement;
+
 import Base.Base;
-import Base.Util;
 import io.teknek.farsandra.Farsandra;
 import io.teknek.farsandra.LineHandler;
 import io.teknek.farsandra.ProcessHandler;
@@ -25,9 +26,8 @@ public class BigBatches2_2_6_tweeked extends Base {
   @Test(expected=IllegalStateException.class)
   //java.lang.IllegalStateException: Batch statement cannot contain more than 65535 statements.
   public void aTest(){
-    BigBatches3_7.keepBatchingTillYouDie();
+    BigBatches3_7.keepBatchingTillYouDie(BatchStatement.Type.LOGGED);
   }  
-  
   
   public static Farsandra buildTweeked(String host, String instance, String seed, String version) throws InterruptedException{
     Farsandra fs = new Farsandra();
