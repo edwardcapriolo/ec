@@ -34,6 +34,7 @@ public class BigBatches3_7 extends Base {
       for (int j = 0 ; j < i; j++){
         bs.add(ps.bind("1", j + "", j + "3"));  
       }
+      System.err.println(bs.size());
       session.execute(bs);
       System.out.println(i+"\t"+ (System.currentTimeMillis() - start));
     }
