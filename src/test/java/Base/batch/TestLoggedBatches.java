@@ -24,8 +24,8 @@ import Base.Util;
 /*
  * writePass: 241
  * writeFail: 758
- * foundOnFirstRead: 201
- * foundOnRetry: 24
+ * foundOnFirstRead: 201   
+ * foundOnRetry: 24 
  */
 public class TestLoggedBatches extends Base {
   
