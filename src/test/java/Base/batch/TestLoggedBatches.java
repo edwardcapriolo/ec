@@ -14,6 +14,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.datastax.driver.core.BatchStatement;
+import com.datastax.driver.core.BatchStatement.Type;
 import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
@@ -22,12 +23,6 @@ import Base.Base;
 import Base.Util;
 import io.teknek.farsandra.Farsandra;
 
-/*
- * writePass: 241
- * writeFail: 758
- * foundOnFirstRead: 201   
- * foundOnRetry: 24 
- */
 public class TestLoggedBatches extends Base {
   
   public static int columnsPerPartition = 200;
@@ -43,9 +38,8 @@ public class TestLoggedBatches extends Base {
     fs1.add(BigBatches2_2_6_tweeked.buildTweeked("127.0.0.102", "102", "127.0.0.101", "2.2.6"));
     fs1.add(BigBatches2_2_6_tweeked.buildTweeked("127.0.0.103", "103", "127.0.0.101", "2.2.6"));
   }
-  
  
-  public static void insert(BatchStatement.Type statementType, String keybase, Session session, PreparedStatement ps){
+  public static void insert(String keybase, Session session, PreparedStatement ps,BatchStatement.Type statementType){
     session.execute("USE eventualtest");
     int numberOfPartitions = 3;
     BatchStatement bs = new BatchStatement(statementType);
@@ -59,29 +53,35 @@ public class TestLoggedBatches extends Base {
     session.execute(bs);
   }
 
+  
   @Test
   public void aTest() throws InterruptedException, ExecutionException{
+    doTest(ConsistencyLevel.ONE, ConsistencyLevel.ONE, BatchStatement.Type.UNLOGGED);
+  }
+  
+  public void doTest(ConsistencyLevel readCl, ConsistencyLevel writeCl, BatchStatement.Type batchType) 
+          throws InterruptedException, ExecutionException {
     Session session = Util.getSession("127.0.0.101");
     session.execute("CREATE KEYSPACE eventualtest WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }");
-    session.execute("CREATE TABLE eventualtest.three (x varchar, y varchar, z varchar, primary key(x,y))");
+    session.execute("CREATE TABLE eventualtest.three (x varchar, y varchar, z varchar, PRIMARY KEY(x,y))");
     PreparedStatement read = session.prepare("SELECT * FROM eventualtest.three WHERE x=?")
-            .setConsistencyLevel(ConsistencyLevel.QUORUM);
+            .setConsistencyLevel(readCl);
     PreparedStatement insert = session.prepare("INSERT INTO eventualtest.three (x,y,z) VALUES (?,?,?)")
-            .setConsistencyLevel(ConsistencyLevel.ONE);
+            .setConsistencyLevel(writeCl);
     
     ExecutorService es = Executors.newFixedThreadPool(200);
     
     List<Callable<Boolean>> writeReadCallable = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
-      writeReadCallable.add(new WriteReadCallable(session, i, read, insert));
+      writeReadCallable.add(new WriteReadCallable(session, i, read, insert, batchType));
     }
     writeReadCallable.set(350, faultInExecutor(fs1));
     List<Future<Boolean>> d = es.invokeAll(writeReadCallable);
     
     printStatus();
     assertCorrectness(d);
-  }  
-
+  }
+  
   private static Callable<Boolean> faultInExecutor(List<Farsandra> fs1){
     Callable<Boolean> x = () -> {
       fs1.get(1).getManager().destroyAndWaitForShutdown(3);
@@ -89,9 +89,11 @@ public class TestLoggedBatches extends Base {
       System.err.println("------------------------");
       System.err.println("------------------------");
       System.err.println("shutdown");
-      return true;};
-      return x;
+      return true;
+    };
+    return x;
   }
+  
   private static void printStatus(){
     System.err.println("writePass: " + writePass.get());
     System.err.println("writeFail: " + writeFail.get());
@@ -116,19 +118,22 @@ public class TestLoggedBatches extends Base {
     private int partitionKey;
     private PreparedStatement read;
     private PreparedStatement insert;
+    private BatchStatement.Type batchType;
     
-    public WriteReadCallable(Session session, int x, PreparedStatement ps, PreparedStatement i){
+    public WriteReadCallable(Session session, int x, PreparedStatement ps, PreparedStatement i,
+            Type logged) {
       this.session = session;
       this.partitionKey = x;
       this.read = ps;
       this.insert = i;
+      this.batchType = logged;
     }
     
     @Override
     public Boolean call() throws Exception {
       boolean pass = false;
       try { 
-        insert(BatchStatement.Type.LOGGED, partitionKey + "", session, insert);
+        insert(partitionKey + "", session, insert, batchType);
         System.err.println("Success write " + partitionKey);
         writePass.incrementAndGet();
       } catch (Exception ex){
