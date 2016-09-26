@@ -14,7 +14,6 @@ import com.datastax.driver.core.Session;
 import Base.Base;
 import Base.Util;
 
-
 public class MultiKeyBatches extends Base {
   
   public static int columnsPerPartition = 2000;
@@ -41,9 +40,9 @@ public class MultiKeyBatches extends Base {
   
   @Test
   /*
-   * With 3 rowkeys in a batch, even logged we still have "eventual consistency". 
-   * We always see ALL the rows in a partition.
-   * Each partition  will appear eventually:
+   * With 3 rowkeys in a batch
+   * Each partition of the batch arrives atomically
+   * Each partition of the batch arrives eventually (even if they are in the same table)
    * For a given run results will look like this:
    * all: 24
    * none: 6

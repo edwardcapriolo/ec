@@ -38,8 +38,8 @@ public class BigBatches2_2_6_tweeked extends Base {
     fs.withHost(host);
     fs.withSeeds(Arrays.asList(seed));
     fs.withJmxPort(10000 + Integer.parseInt(instance));
-    fs.appendLinesToEnv("MAX_HEAP_SIZE=400M");
-    fs.appendLinesToEnv("HEAP_NEWSIZE=100M");
+    fs.appendLinesToEnv("MAX_HEAP_SIZE=800M");
+    fs.appendLinesToEnv("HEAP_NEWSIZE=200M");
     fs.withYamlReplacement("endpoint_snitch: SimpleSnitch",
             "endpoint_snitch:  GossipingPropertyFileSnitch");
     fs.withYamlReplacement("batch_size_warn_threshold_in_kb: 5", 
