@@ -20,6 +20,7 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import Base.Base;
 import Base.Util;
+import io.teknek.farsandra.Farsandra;
 
 /*
  * writePass: 241
@@ -63,13 +64,25 @@ public class TestLoggedBatches extends Base {
     Session session = Util.getSession("127.0.0.101");
     session.execute("CREATE KEYSPACE eventualtest WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }");
     session.execute("CREATE TABLE eventualtest.three (x varchar, y varchar, z varchar, primary key(x,y))");
-    PreparedStatement read = session.prepare("SELECT * FROM eventualtest.three where x=?");
-    PreparedStatement ps = session.prepare("insert into eventualtest.three (x,y,z) values (?,?,?)");
+    PreparedStatement read = session.prepare("SELECT * FROM eventualtest.three WHERE x=?")
+            .setConsistencyLevel(ConsistencyLevel.QUORUM);
+    PreparedStatement insert = session.prepare("INSERT INTO eventualtest.three (x,y,z) VALUES (?,?,?)")
+            .setConsistencyLevel(ConsistencyLevel.ONE);
+    
     ExecutorService es = Executors.newFixedThreadPool(200);
-    List<Callable<Boolean>> a = new ArrayList<>();
-    for (int i =0;i<1000; i++){
-      a.add(new WriteReadCallable(session, i, read, ps));
+    
+    List<Callable<Boolean>> writeReadCallable = new ArrayList<>();
+    for (int i = 0; i < 1000; i++) {
+      writeReadCallable.add(new WriteReadCallable(session, i, read, insert));
     }
+    writeReadCallable.set(350, faultInExecutor(fs1));
+    List<Future<Boolean>> d = es.invokeAll(writeReadCallable);
+    
+    printStatus();
+    assertCorrectness(d);
+  }  
+
+  private static Callable<Boolean> faultInExecutor(List<Farsandra> fs1){
     Callable<Boolean> x = () -> {
       fs1.get(1).getManager().destroyAndWaitForShutdown(3);
       System.err.println("------------------------");
@@ -77,41 +90,37 @@ public class TestLoggedBatches extends Base {
       System.err.println("------------------------");
       System.err.println("shutdown");
       return true;};
-    a.set(350, x);
-    List<Future<Boolean>> d = null;
-    try {
-      d = es.invokeAll(a);
-    } catch (InterruptedException e) {
-      // TODO Auto-generated catch block
-      e.printStackTrace();
-    }
-    
-    List<Boolean> results = new ArrayList<>();
-    for (Future<Boolean> t: d){
-      results.add(t.get());
-    }
+      return x;
+  }
+  private static void printStatus(){
     System.err.println("writePass: " + writePass.get());
     System.err.println("writeFail: " + writeFail.get());
     System.err.println("foundOnFirstRead: " + foundOnFirstRead.get());
     System.err.println("foundOnRetry: " + foundOnRetry.get());
-    for (int i= 0;i< results.size();i++){
-      Assert.assertEquals("problem with key "+i,  true, results.get(i));
-    }
-    
-  }  
+  }
   
+  private static void assertCorrectness(List<Future<Boolean>> d) throws InterruptedException, ExecutionException{
+    List<Boolean> results = new ArrayList<>();
+    for (Future<Boolean> t: d){
+      results.add(t.get());
+    }
+    for (int i= 0;i< results.size();i++){
+      Assert.assertEquals("Problem with key " + i,  true, results.get(i));
+    }
+    Assert.assertEquals(writePass.get(), foundOnFirstRead.get() + foundOnRetry.get());
+  }
   
   public class WriteReadCallable implements Callable<Boolean> {
 
     private Session session;
-    private int x;
-    private PreparedStatement ps;
+    private int partitionKey;
+    private PreparedStatement read;
     private PreparedStatement insert;
     
     public WriteReadCallable(Session session, int x, PreparedStatement ps, PreparedStatement i){
       this.session = session;
-      this.x = x;
-      this.ps = ps;
+      this.partitionKey = x;
+      this.read = ps;
       this.insert = i;
     }
     
@@ -119,9 +128,11 @@ public class TestLoggedBatches extends Base {
     public Boolean call() throws Exception {
       boolean pass = false;
       try { 
-        insert(BatchStatement.Type.LOGGED, x + "", session, insert);
+        insert(BatchStatement.Type.LOGGED, partitionKey + "", session, insert);
+        System.err.println("Success write " + partitionKey);
         writePass.incrementAndGet();
-      } catch (RuntimeException ex){
+      } catch (Exception ex){
+        System.err.println("Failed write " + partitionKey);
         writeFail.incrementAndGet();
         return true;
       }
@@ -130,22 +141,25 @@ public class TestLoggedBatches extends Base {
       do {
         retry++;
         try {
-          rows = session.execute(ps.bind(x + "" + 2)).all();
+          rows = session.execute(read.bind(partitionKey + "" + 2)).all();
         } catch (Exception e){
-          
+          System.err.println("Problem reading " + partitionKey + " " + e.getMessage());
         }
         if (rows != null && rows.size() == columnsPerPartition){
-          System.err.println("found on try " + retry);
+          System.err.println("found " + partitionKey + " on try " + retry);
           pass = true;
           if (retry == 1){
             foundOnFirstRead.incrementAndGet();
-          } else{
+          } else {
             foundOnRetry.incrementAndGet();
           }
           break;
         }
+        if (rows != null && rows.size() != columnsPerPartition) {
+          System.err.println("found " + partitionKey + " with wrong data " + rows);
+        }
+        Thread.sleep(250);
       } while (retry < 100);
-      
       return pass;
     }
     
