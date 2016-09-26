@@ -26,12 +26,12 @@ import io.teknek.farsandra.Farsandra;
 public class TestLoggedBatches extends Base {
   
   public static int columnsPerPartition = 200;
+
   public static AtomicLong writePass = new AtomicLong(0);
-  public static AtomicLong writeFail= new AtomicLong(0);
-  
-  public static AtomicLong foundOnFirstRead= new AtomicLong(0);
-  public static AtomicLong foundOnRetry= new AtomicLong(0);
-  
+  public static AtomicLong writeFail = new AtomicLong(0);
+  public static AtomicLong foundOnFirstRead = new AtomicLong(0);
+  public static AtomicLong foundOnRetry = new AtomicLong(0);
+
   @Before
   public void setup() throws InterruptedException {
     fs1.add(BigBatches2_2_6_tweeked.buildTweeked("127.0.0.101", "101", "127.0.0.101", "2.2.6"));
