@@ -38,22 +38,7 @@ public class TestLoggedBatches extends Base {
     fs1.add(BigBatches2_2_6_tweeked.buildTweeked("127.0.0.102", "102", "127.0.0.101", "2.2.6"));
     fs1.add(BigBatches2_2_6_tweeked.buildTweeked("127.0.0.103", "103", "127.0.0.101", "2.2.6"));
   }
- 
-  public static void insert(String keybase, Session session, PreparedStatement ps,BatchStatement.Type statementType){
-    session.execute("USE eventualtest");
-    int numberOfPartitions = 3;
-    BatchStatement bs = new BatchStatement(statementType);
-    bs.setIdempotent(true);
-    bs.setConsistencyLevel(ConsistencyLevel.ONE);
-    for (int i = 0; i < numberOfPartitions ; i++){
-      for (int j = 0 ; j < columnsPerPartition; j++){
-        bs.add(ps.bind(keybase + i +"", j + "", j + "3"));  
-      }
-    }
-    session.execute(bs);
-  }
-
-  
+   
   @Test
   public void aTest() throws InterruptedException, ExecutionException{
     doTest(ConsistencyLevel.ONE, ConsistencyLevel.ONE, BatchStatement.Type.UNLOGGED);
@@ -168,5 +153,19 @@ public class TestLoggedBatches extends Base {
       return pass;
     }
     
+  }
+  
+  public static void insert(String keybase, Session session, PreparedStatement ps,BatchStatement.Type statementType){
+    session.execute("USE eventualtest");
+    int numberOfPartitions = 3;
+    BatchStatement bs = new BatchStatement(statementType);
+    bs.setIdempotent(true);
+    bs.setConsistencyLevel(ConsistencyLevel.ONE);
+    for (int i = 0; i < numberOfPartitions ; i++){
+      for (int j = 0 ; j < columnsPerPartition; j++){
+        bs.add(ps.bind(keybase + i +"", j + "", j + "3"));  
+      }
+    }
+    session.execute(bs);
   }
 }

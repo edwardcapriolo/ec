@@ -40,6 +40,11 @@ public class Util {
       public void handleLine(String line) {
         System.out.println("out " + line);
         if (line.contains("Listening for thrift clients...")) {
+          try {
+            Thread.sleep(10000);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
           started.countDown();
         }
       }
