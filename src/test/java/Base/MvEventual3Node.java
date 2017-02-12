@@ -25,7 +25,7 @@ public class MvEventual3Node extends Base {
   public void hello() throws InterruptedException {
     Thread.sleep(30000);
     Session session = Util.getSession("127.0.0.101");
-    session.execute("CREATE KEYSPACE "+ keyspace +" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 3 }");
+    session.execute("CREATE KEYSPACE "+ keyspace +" WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 2 }");
     session.execute("USE " + keyspace );
     session.execute("CREATE TABLE "+tablename+" (x varchar, y varchar, z varchar, z1 varchar, primary key(x, y))");
     session.execute( "CREATE MATERIALIZED VIEW mv1 AS " +
