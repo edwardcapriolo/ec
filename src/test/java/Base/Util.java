@@ -29,6 +29,7 @@ public class Util {
     fs.withHost(host);
     fs.withSeeds(Arrays.asList(seed));
     fs.withJmxPort(10000 + Integer.parseInt(instance));
+    fs.withDatacentername(instance.charAt(0)+"");
     fs.appendLinesToEnv("MAX_HEAP_SIZE=100M");
     fs.appendLinesToEnv("HEAP_NEWSIZE=10M");
     fs.withYamlReplacement("endpoint_snitch: SimpleSnitch",
