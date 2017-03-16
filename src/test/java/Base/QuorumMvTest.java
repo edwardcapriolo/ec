@@ -182,6 +182,8 @@ public class QuorumMvTest {
     
     PreparedStatement localquorumWrite2 = session.prepare("INSERT INTO sample.sample (id)  VALUES (uuid())")
             .setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM);
-    session.execute(localquorumWrite2.bind());
+    for (int i = 0 ; i <10000; i++){
+      session.execute(localquorumWrite2.bind());
+    }
   }
 }
